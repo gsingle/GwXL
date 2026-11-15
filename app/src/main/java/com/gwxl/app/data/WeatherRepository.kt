@@ -39,7 +39,7 @@ class WeatherRepository {
                 append("&temperature_unit=fahrenheit")
                 append("&wind_speed_unit=kn")
                 append("&timezone=auto")
-                append("&forecast_days=10")
+                append("&forecast_days=14")
             }
 
             val request = Request.Builder().url(url).get().build()

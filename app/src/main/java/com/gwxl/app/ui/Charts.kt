@@ -25,6 +25,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
@@ -36,16 +37,18 @@ import com.gwxl.app.data.HourlyUi
 import com.gwxl.app.data.WeatherRepository
 
 /**
- * Absolute temperature color scale (°F): blue at 30° and below, red at 90° and above,
- * passing smoothly through purple and magenta in between.
+ * Absolute temperature color scale (°F): full blue at 32° and below, through cyan/teal to
+ * mid green at exactly 72°, then through yellow/orange to full red at 95° and above.
  */
 fun tempColor(tempF: Float): Color {
     val stops = listOf(
-        30f to Color(0xFF3D7DFF),  // blue
-        50f to Color(0xFF7B61FF),  // indigo / violet
-        65f to Color(0xFFB04DE8),  // purple
-        78f to Color(0xFFE6408F),  // magenta
-        90f to Color(0xFFFF3B3B)   // red
+        32f to Color(0xFF2F7BFF),  // blue
+        45f to Color(0xFF1FB4F2),  // sky / cyan
+        58f to Color(0xFF1ECFB0),  // teal
+        72f to Color(0xFF35D45A),  // green
+        80f to Color(0xFFE3D63A),  // yellow
+        88f to Color(0xFFFF9330),  // orange
+        95f to Color(0xFFFF3B3B)   // red
     )
     if (tempF <= stops.first().first) return stops.first().second
     if (tempF >= stops.last().first) return stops.last().second
@@ -55,6 +58,17 @@ fun tempColor(tempF: Float): Color {
         if (tempF in t0..t1) return lerp(c0, c1, (tempF - t0) / (t1 - t0))
     }
     return stops.last().second
+}
+
+/**
+ * Scale color for temperature *text*: same hue as [tempColor], lifted toward white when the
+ * hue is dark (deep blue, red) so numbers stay readable on the dark background.
+ */
+fun tempTextColor(tempF: Float): Color {
+    val c = tempColor(tempF)
+    val lum = c.luminance()
+    val target = 0.42f
+    return if (lum >= target) c else lerp(c, Color.White, ((target - lum) / (1f - lum)).coerceIn(0f, 0.45f))
 }
 
 /**
@@ -185,7 +199,10 @@ private fun HourlyTempGraph(hours: List<HourlyUi>, modifier: Modifier = Modifier
             val c = tempColor(temps[i])
             drawCircle(color = bg, radius = 4.5.dp.toPx(), center = p)
             drawCircle(color = c, radius = 3.dp.toPx(), center = p)
-            val layout = measurer.measure("${hours[i].temperature}°", labelStyle)
+            val layout = measurer.measure(
+                "${hours[i].temperature}°",
+                labelStyle.copy(color = tempTextColor(temps[i]))
+            )
             drawText(
                 layout,
                 topLeft = Offset(

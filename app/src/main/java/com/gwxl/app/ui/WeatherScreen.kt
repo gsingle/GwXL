@@ -18,7 +18,7 @@ import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -38,7 +38,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -233,7 +237,7 @@ private fun WeatherContent(
                             fontSize = 72.sp,
                             lineHeight = 74.sp,
                             fontWeight = FontWeight.Light,
-                            color = onBg,
+                            color = tempTextColor(current.temperature.toFloat()),
                             letterSpacing = (-2).sp,
                             maxLines = 1
                         )
@@ -248,9 +252,27 @@ private fun WeatherContent(
                             overflow = TextOverflow.Ellipsis
                         )
                         val detail = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp)
-                        Text(text = "Feels like ${current.feelsLike}°", style = detail, color = onBg.copy(alpha = 0.6f))
+                        Text(
+                            text = buildAnnotatedString {
+                                append("Feels like ")
+                                withStyle(SpanStyle(color = tempTextColor(current.feelsLike.toFloat()))) {
+                                    append("${current.feelsLike}°")
+                                }
+                            },
+                            style = detail,
+                            color = onBg.copy(alpha = 0.6f)
+                        )
                         if (today != null) {
-                            Text(text = "H ${today.high}° · L ${today.low}°", style = detail, color = onBg.copy(alpha = 0.6f))
+                            Text(
+                                text = buildAnnotatedString {
+                                    append("H ")
+                                    withStyle(SpanStyle(color = tempTextColor(today.high.toFloat()))) { append("${today.high}°") }
+                                    append(" · L ")
+                                    withStyle(SpanStyle(color = tempTextColor(today.low.toFloat()))) { append("${today.low}°") }
+                                },
+                                style = detail,
+                                color = onBg.copy(alpha = 0.6f)
+                            )
                         }
                         Text(text = "Wind ${current.windSpeed} kt", style = detail, color = onBg.copy(alpha = 0.5f))
                         Text(text = "Humidity ${current.humidity}%", style = detail, color = onBg.copy(alpha = 0.5f))
@@ -286,8 +308,12 @@ private fun WeatherContent(
         if (state.daily.isNotEmpty()) {
             val scaleMin = state.daily.minOf { it.low }
             val scaleMax = state.daily.maxOf { it.high }
-            items(state.daily) { day ->
-                DailyRow(day, repo, scaleMin, scaleMax)
+            itemsIndexed(state.daily) { index, day ->
+                // Days 11-14 are shown slightly dimmer: lower forecast confidence.
+                DailyRow(
+                    day, repo, scaleMin, scaleMax,
+                    modifier = if (index >= 10) Modifier.alpha(0.65f) else Modifier
+                )
             }
         }
 
@@ -323,11 +349,17 @@ private fun SectionHeader(text: String) {
 }
 
 @Composable
-private fun DailyRow(day: DailyUi, repo: WeatherRepository, scaleMin: Int, scaleMax: Int) {
+private fun DailyRow(
+    day: DailyUi,
+    repo: WeatherRepository,
+    scaleMin: Int,
+    scaleMax: Int,
+    modifier: Modifier = Modifier
+) {
     val onBg = MaterialTheme.colorScheme.onBackground
     val compact = MaterialTheme.typography.labelSmall.copy(lineHeight = 13.sp)
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
@@ -378,7 +410,7 @@ private fun DailyRow(day: DailyUi, repo: WeatherRepository, scaleMin: Int, scale
             modifier = Modifier.width(34.dp),
             textAlign = TextAlign.End,
             style = MaterialTheme.typography.bodyLarge,
-            color = onBg.copy(alpha = 0.55f),
+            color = tempTextColor(day.low.toFloat()),
             maxLines = 1
         )
         TempRangeBar(
@@ -396,7 +428,7 @@ private fun DailyRow(day: DailyUi, repo: WeatherRepository, scaleMin: Int, scale
             modifier = Modifier.width(34.dp),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
-            color = onBg,
+            color = tempTextColor(day.high.toFloat()),
             maxLines = 1
         )
     }
