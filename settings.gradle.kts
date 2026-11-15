@@ -13,5 +13,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "GWxL"
+rootProject.name = "GwXL"
 include(":app")

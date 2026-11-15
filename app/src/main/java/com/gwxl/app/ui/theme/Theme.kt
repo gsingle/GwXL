@@ -18,7 +18,7 @@ private val DarkColors = darkColorScheme(
 )
 
 @Composable
-fun GWxLTheme(content: @Composable () -> Unit) {
+fun GwXLTheme(content: @Composable () -> Unit) {
     MaterialTheme(
         colorScheme = DarkColors,
         content = content
