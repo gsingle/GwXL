@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -25,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -42,12 +44,13 @@ fun WeatherScreen(
     state: WeatherUiState,
     onRefresh: () -> Unit
 ) {
-    val repo = WeatherRepository() // only for emoji helper
+    val repo = remember { WeatherRepository() } // only for text/emoji helpers
 
     Box(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .systemBarsPadding()
     ) {
         when {
             state.isLoading && state.current == null -> {
@@ -137,6 +140,11 @@ fun WeatherScreen(
                                     style = MaterialTheme.typography.bodyLarge,
                                     color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
                                 )
+                                Text(
+                                    text = "Wind ${current.windSpeed} kt · Humidity ${current.humidity}%",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                                )
                             }
                         }
                     }
@@ -198,7 +206,7 @@ fun WeatherScreen(
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                         )
                         Text(
-                            text = "Powered by Open-Meteo · GWxL",
+                            text = "Powered by Open-Meteo · GwXL",
                             modifier = Modifier.fillMaxWidth(),
                             textAlign = TextAlign.Center,
                             style = MaterialTheme.typography.labelSmall,

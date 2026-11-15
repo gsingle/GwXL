@@ -7,8 +7,12 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.ZoneOffset
+import java.time.temporal.ChronoUnit
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
 
 class WeatherRepository {
 
@@ -54,11 +58,11 @@ class WeatherRepository {
     fun mapToUi(response: OpenMeteoResponse, locationName: String): WeatherUiState {
         val current = response.current?.let {
             CurrentUi(
-                temperature = it.temperature?.toInt() ?: 0,
-                feelsLike = it.apparentTemperature?.toInt() ?: 0,
+                temperature = it.temperature?.roundToInt() ?: 0,
+                feelsLike = it.apparentTemperature?.roundToInt() ?: 0,
                 summary = weatherCodeToText(it.weatherCode ?: 0),
                 weatherCode = it.weatherCode ?: 0,
-                windSpeed = it.windSpeed?.toInt() ?: 0,
+                windSpeed = it.windSpeed?.roundToInt() ?: 0,
                 humidity = it.humidity ?: 0
             )
         }
@@ -69,22 +73,29 @@ class WeatherRepository {
         val probs = response.hourly?.precipitationProbability ?: emptyList()
         val codes = response.hourly?.weatherCode ?: emptyList()
 
-        val now = LocalDateTime.now(ZoneId.systemDefault())
-        val hourFmt = DateTimeFormatter.ofPattern("ha")
+        // Open-Meteo returns local times for the forecast location (timezone=auto),
+        // so compare against "now" in that location's UTC offset.
+        val zone = response.utcOffsetSeconds?.let { ZoneOffset.ofTotalSeconds(it) } ?: ZoneId.systemDefault()
+        val nowHour = LocalDateTime.now(zone).truncatedTo(ChronoUnit.HOURS)
+        val hourFmt = DateTimeFormatter.ofPattern("ha", Locale.US)
 
-        for (i in times.indices) {
-            if (i >= 24) break
-            val timeStr = times.getOrNull(i) ?: continue
+        // Index of the current hour in the hourly arrays
+        val startIndex = times.indexOfFirst { t ->
+            val dt = try { LocalDateTime.parse(t) } catch (_: Exception) { null }
+            dt != null && !dt.isBefore(nowHour)
+        }.let { if (it < 0) 0 else it }
+
+        for (i in startIndex until minOf(times.size, startIndex + 24)) {
             val dt = try {
-                LocalDateTime.parse(timeStr, DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                LocalDateTime.parse(times[i], DateTimeFormatter.ISO_LOCAL_DATE_TIME)
             } catch (_: Exception) {
                 continue
             }
-            val isNow = dt.hour == now.hour && dt.toLocalDate() == now.toLocalDate()
+            val isNow = i == startIndex
             hourlyList.add(
                 HourlyUi(
                     time = if (isNow) "Now" else dt.format(hourFmt).lowercase(),
-                    temperature = temps.getOrNull(i)?.toInt() ?: 0,
+                    temperature = temps.getOrNull(i)?.roundToInt() ?: 0,
                     precipProbability = probs.getOrNull(i) ?: 0,
                     weatherCode = codes.getOrNull(i) ?: 0,
                     isNow = isNow
@@ -92,7 +103,7 @@ class WeatherRepository {
             )
         }
 
-        val nextHourSummary = buildNextHourSummary(probs, times)
+        val nextHourSummary = buildNextHourSummary(probs.drop(startIndex))
 
         val dailyList = mutableListOf<DailyUi>()
         val dayTimes = response.daily?.time ?: emptyList()
@@ -101,7 +112,7 @@ class WeatherRepository {
         val dayProbs = response.daily?.precipitationProbabilityMax ?: emptyList()
         val dayCodes = response.daily?.weatherCode ?: emptyList()
 
-        val dayFmt = DateTimeFormatter.ofPattern("EEE")
+        val dayFmt = DateTimeFormatter.ofPattern("EEE", Locale.US)
         for (i in dayTimes.indices) {
             val dayStr = dayTimes.getOrNull(i) ?: continue
             val date = try {
@@ -113,8 +124,8 @@ class WeatherRepository {
             dailyList.add(
                 DailyUi(
                     dayName = name,
-                    high = highs.getOrNull(i)?.toInt() ?: 0,
-                    low = lows.getOrNull(i)?.toInt() ?: 0,
+                    high = highs.getOrNull(i)?.roundToInt() ?: 0,
+                    low = lows.getOrNull(i)?.roundToInt() ?: 0,
                     precipProbability = dayProbs.getOrNull(i) ?: 0,
                     weatherCode = dayCodes.getOrNull(i) ?: 0,
                     summary = weatherCodeToText(dayCodes.getOrNull(i) ?: 0)
@@ -129,13 +140,13 @@ class WeatherRepository {
             nextHourSummary = nextHourSummary,
             hourly = hourlyList,
             daily = dailyList,
-            lastUpdated = LocalDateTime.now().format(DateTimeFormatter.ofPattern("h:mm a"))
+            lastUpdated = LocalDateTime.now().format(DateTimeFormatter.ofPattern("h:mm a", Locale.US))
         )
     }
 
-    private fun buildNextHourSummary(probs: List<Int>, times: List<String>): String {
+    private fun buildNextHourSummary(probs: List<Int>): String {
         if (probs.isEmpty()) return "No precipitation data"
-        val firstFew = probs.take(3)
+        val firstFew = probs.take(2) // this hour and the next
         val maxProb = firstFew.maxOrNull() ?: 0
         return when {
             maxProb < 10 -> "No rain expected in the next hour"
