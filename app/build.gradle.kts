@@ -13,11 +13,25 @@ android {
         applicationId = "com.gwxl.app"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
+    }
+
+    // Fixed debug key (committed on purpose) so every CI build is signed the same
+    // way and new APKs install as updates over older ones.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("gwxl-debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
