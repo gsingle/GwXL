@@ -186,7 +186,8 @@ class WeatherRepository {
 
     fun weatherCodeToText(code: Int): String = when (code) {
         0 -> "Clear"
-        1, 2, 3 -> "Partly cloudy"
+        1, 2 -> "Partly cloudy"
+        3 -> "Cloudy"
         45, 48 -> "Foggy"
         51, 53, 55 -> "Drizzle"
         61, 63, 65 -> "Rain"
@@ -199,15 +200,5 @@ class WeatherRepository {
         96, 99 -> "Thunderstorm with hail"
         else -> "Unknown"
     }
-
-    fun weatherCodeToEmoji(code: Int): String = when (code) {
-        0 -> "☀️"
-        1, 2, 3 -> "⛅"
-        45, 48 -> "🌫️"
-        51, 53, 55, 61, 63, 65, 80, 81, 82 -> "🌧️"
-        66, 67 -> "🌧️"
-        71, 73, 75, 77, 85, 86 -> "❄️"
-        95, 96, 99 -> "⛈️"
-        else -> "🌤️"
-    }
 }
+

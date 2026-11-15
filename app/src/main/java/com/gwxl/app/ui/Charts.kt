@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -34,7 +35,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gwxl.app.data.HourlyUi
-import com.gwxl.app.data.WeatherRepository
 
 /**
  * Absolute temperature color scale (°F): full blue at 32° and below, through cyan/teal to
@@ -78,7 +78,6 @@ fun tempTextColor(tempF: Float): Color {
 @Composable
 fun HourlyStripWithGraph(
     hours: List<HourlyUi>,
-    repo: WeatherRepository,
     cellWidth: Dp = 56.dp
 ) {
     if (hours.isEmpty()) return
@@ -99,7 +98,7 @@ fun HourlyStripWithGraph(
                         color = if (h.isNow) MaterialTheme.colorScheme.onBackground else dim
                     )
                     Spacer(Modifier.height(2.dp))
-                    Text(text = repo.weatherCodeToEmoji(h.weatherCode), fontSize = 20.sp)
+                    WeatherIcon(weatherCode = h.weatherCode, modifier = Modifier.size(22.dp))
                 }
             }
         }

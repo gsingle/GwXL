@@ -1,4 +1,4 @@
-# GwXL
+# gWxl
 
 Simple, fast weather app inspired by the classic Dark Sky experience.
 

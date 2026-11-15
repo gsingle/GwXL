@@ -33,7 +33,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -51,7 +50,6 @@ import androidx.compose.ui.unit.sp
 import com.gwxl.app.data.DailyUi
 import com.gwxl.app.data.SavedPlace
 import com.gwxl.app.data.SearchUiState
-import com.gwxl.app.data.WeatherRepository
 import com.gwxl.app.data.WeatherUiState
 
 @Composable
@@ -65,7 +63,6 @@ fun WeatherScreen(
     onRemoveRecent: (SavedPlace) -> Unit,
     onSearchClosed: () -> Unit
 ) {
-    val repo = remember { WeatherRepository() } // only for text/emoji helpers
     var searchOpen by rememberSaveable { mutableStateOf(false) }
 
     Box(
@@ -121,7 +118,6 @@ fun WeatherScreen(
             }
             else -> WeatherContent(
                 state = state,
-                repo = repo,
                 onRefresh = onRefresh,
                 onLocationClick = { searchOpen = true },
                 onUseCurrentLocation = onUseCurrentLocation
@@ -133,7 +129,6 @@ fun WeatherScreen(
 @Composable
 private fun WeatherContent(
     state: WeatherUiState,
-    repo: WeatherRepository,
     onRefresh: () -> Unit,
     onLocationClick: () -> Unit,
     onUseCurrentLocation: () -> Unit
@@ -149,7 +144,7 @@ private fun WeatherContent(
             // Keep the location name clear of the centered title.
             val locationMaxWidth = maxWidth / 2 - 34.dp
             Text(
-                text = "GwXL",
+                text = "gWxl",
                 modifier = Modifier.align(Alignment.Center),
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.SemiBold,
@@ -230,7 +225,7 @@ private fun WeatherContent(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        Text(text = repo.weatherCodeToEmoji(current.weatherCode), fontSize = 36.sp, lineHeight = 40.sp)
+                        WeatherIcon(weatherCode = current.weatherCode, modifier = Modifier.size(36.dp), contentDescription = current.summary)
                         Spacer(Modifier.width(6.dp))
                         Text(
                             text = "${current.temperature}°",
@@ -297,7 +292,7 @@ private fun WeatherContent(
         // Hourly strip + temperature graph (scroll together)
         item {
             SectionHeader("Next 24 hours")
-            HourlyStripWithGraph(hours = state.hourly, repo = repo)
+            HourlyStripWithGraph(hours = state.hourly)
         }
 
         // Daily list with range bars on a shared scale
@@ -311,7 +306,7 @@ private fun WeatherContent(
             itemsIndexed(state.daily) { index, day ->
                 // Days 11-14 are shown slightly dimmer: lower forecast confidence.
                 DailyRow(
-                    day, repo, scaleMin, scaleMax,
+                    day, scaleMin, scaleMax,
                     modifier = if (index >= 10) Modifier.alpha(0.65f) else Modifier
                 )
             }
@@ -328,7 +323,7 @@ private fun WeatherContent(
                 color = onBg.copy(alpha = 0.4f)
             )
             Text(
-                text = "Powered by Open-Meteo · GwXL",
+                text = "Powered by Open-Meteo · gWxl",
                 modifier = Modifier.fillMaxWidth(),
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.labelSmall,
@@ -351,7 +346,6 @@ private fun SectionHeader(text: String) {
 @Composable
 private fun DailyRow(
     day: DailyUi,
-    repo: WeatherRepository,
     scaleMin: Int,
     scaleMax: Int,
     modifier: Modifier = Modifier
@@ -381,11 +375,16 @@ private fun DailyRow(
             maxLines = 1
         )
         Spacer(Modifier.width(4.dp))
-        Text(
-            text = repo.weatherCodeToEmoji(day.weatherCode),
-            fontSize = 20.sp,
-            modifier = Modifier.width(30.dp)
-        )
+        Box(
+            modifier = Modifier.width(30.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            WeatherIcon(
+                weatherCode = day.weatherCode,
+                modifier = Modifier.size(22.dp),
+                contentDescription = day.summary
+            )
+        }
         // Fixed-width column: rain chance (if any) over max wind, so the low temp and
         // bar line up the same on every row whether or not there's rain.
         Column(modifier = Modifier.width(36.dp)) {
