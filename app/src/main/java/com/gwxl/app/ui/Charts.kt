@@ -35,16 +35,17 @@ import androidx.compose.ui.unit.sp
 import com.gwxl.app.data.HourlyUi
 import com.gwxl.app.data.WeatherRepository
 
-/** Cool-to-warm color for a temperature in °F (dark-mode friendly, Dark Sky-ish). */
+/**
+ * Absolute temperature color scale (°F): blue at 30° and below, red at 90° and above,
+ * passing smoothly through purple and magenta in between.
+ */
 fun tempColor(tempF: Float): Color {
     val stops = listOf(
-        0f to Color(0xFF7E8CFF),   // very cold: periwinkle
-        32f to Color(0xFF5EB8FF),  // freezing: blue
-        50f to Color(0xFF4DD6C8),  // cool: teal
-        65f to Color(0xFFB6E36A),  // mild: green-yellow
-        78f to Color(0xFFFFC94D),  // warm: amber
-        90f to Color(0xFFFF8A4C),  // hot: orange
-        105f to Color(0xFFFF4F5E)  // very hot: red
+        30f to Color(0xFF3D7DFF),  // blue
+        50f to Color(0xFF7B61FF),  // indigo / violet
+        65f to Color(0xFFB04DE8),  // purple
+        78f to Color(0xFFE6408F),  // magenta
+        90f to Color(0xFFFF3B3B)   // red
     )
     if (tempF <= stops.first().first) return stops.first().second
     if (tempF >= stops.last().first) return stops.last().second
@@ -105,7 +106,7 @@ fun HourlyStripWithGraph(
                         color = MaterialTheme.colorScheme.primary
                     )
                     Text(
-                        text = "${h.windSpeed}kt",
+                        text = "${h.windSpeed} kt",
                         style = compact,
                         fontSize = 10.sp,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)

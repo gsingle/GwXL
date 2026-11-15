@@ -213,32 +213,48 @@ private fun WeatherContent(
         // Current conditions
         item {
             state.current?.let { current ->
-                Column(
+                val today = state.daily.firstOrNull()
+                // Compact two-column block: icon + big temp on the left, details stacked on the right.
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(top = 0.dp, bottom = 2.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
+                        .padding(start = 20.dp, end = 20.dp, top = 2.dp, bottom = 2.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = repo.weatherCodeToEmoji(current.weatherCode), fontSize = 42.sp, lineHeight = 46.sp)
-                    Text(
-                        text = "${current.temperature}°",
-                        fontSize = 88.sp,
-                        lineHeight = 90.sp,
-                        fontWeight = FontWeight.Light,
-                        color = onBg,
-                        letterSpacing = (-2).sp
-                    )
-                    Text(text = current.summary, style = MaterialTheme.typography.titleLarge, color = onBg)
-                    Text(
-                        text = "Feels like ${current.feelsLike}°",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = onBg.copy(alpha = 0.6f)
-                    )
-                    Text(
-                        text = "Wind ${current.windSpeed} kt · Humidity ${current.humidity}%",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = onBg.copy(alpha = 0.5f)
-                    )
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(text = repo.weatherCodeToEmoji(current.weatherCode), fontSize = 36.sp, lineHeight = 40.sp)
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "${current.temperature}°",
+                            fontSize = 72.sp,
+                            lineHeight = 74.sp,
+                            fontWeight = FontWeight.Light,
+                            color = onBg,
+                            letterSpacing = (-2).sp,
+                            maxLines = 1
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = current.summary,
+                            style = MaterialTheme.typography.titleMedium,
+                            color = onBg,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        val detail = MaterialTheme.typography.bodySmall.copy(lineHeight = 17.sp)
+                        Text(text = "Feels like ${current.feelsLike}°", style = detail, color = onBg.copy(alpha = 0.6f))
+                        if (today != null) {
+                            Text(text = "H ${today.high}° · L ${today.low}°", style = detail, color = onBg.copy(alpha = 0.6f))
+                        }
+                        Text(text = "Wind ${current.windSpeed} kt", style = detail, color = onBg.copy(alpha = 0.5f))
+                        Text(text = "Humidity ${current.humidity}%", style = detail, color = onBg.copy(alpha = 0.5f))
+                    }
                 }
             }
         }
@@ -316,26 +332,23 @@ private fun DailyRow(day: DailyUi, repo: WeatherRepository, scaleMin: Int, scale
             .padding(horizontal = 20.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Day name + date, e.g. "Mon 11/2"
-        Row(modifier = Modifier.width(88.dp)) {
-            Text(
-                text = day.dayName,
-                modifier = Modifier.alignByBaseline(),
-                style = MaterialTheme.typography.bodyLarge,
-                color = onBg,
-                maxLines = 1
-            )
-            if (day.dateLabel.isNotEmpty()) {
-                Spacer(Modifier.width(5.dp))
-                Text(
-                    text = day.dateLabel,
-                    modifier = Modifier.alignByBaseline(),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = onBg.copy(alpha = 0.45f),
-                    maxLines = 1
-                )
-            }
-        }
+        // Day name (left-aligned) and date (own fixed column, centered) so both line up
+        Text(
+            text = day.dayName,
+            modifier = Modifier.width(54.dp),
+            style = MaterialTheme.typography.bodyLarge,
+            color = onBg,
+            maxLines = 1
+        )
+        Text(
+            text = day.dateLabel,
+            modifier = Modifier.width(46.dp),
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.labelMedium,
+            color = onBg.copy(alpha = 0.45f),
+            maxLines = 1
+        )
+        Spacer(Modifier.width(4.dp))
         Text(
             text = repo.weatherCodeToEmoji(day.weatherCode),
             fontSize = 20.sp,
@@ -353,7 +366,7 @@ private fun DailyRow(day: DailyUi, repo: WeatherRepository, scaleMin: Int, scale
                 )
             }
             Text(
-                text = "${day.windMax}kt",
+                text = "${day.windMax} kt",
                 style = compact,
                 fontSize = 10.sp,
                 color = onBg.copy(alpha = 0.4f),
