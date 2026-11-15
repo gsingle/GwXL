@@ -34,8 +34,8 @@ class WeatherRepository {
                 append("?latitude=$lat")
                 append("&longitude=$lon")
                 append("&current=temperature_2m,apparent_temperature,weather_code,wind_speed_10m,precipitation,relative_humidity_2m")
-                append("&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code")
-                append("&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code")
+                append("&hourly=temperature_2m,apparent_temperature,precipitation_probability,precipitation,weather_code,wind_speed_10m")
+                append("&daily=temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,weather_code,wind_speed_10m_max")
                 append("&temperature_unit=fahrenheit")
                 append("&wind_speed_unit=kn")
                 append("&timezone=auto")
@@ -94,6 +94,7 @@ class WeatherRepository {
         val temps = response.hourly?.temperature ?: emptyList()
         val probs = response.hourly?.precipitationProbability ?: emptyList()
         val codes = response.hourly?.weatherCode ?: emptyList()
+        val winds = response.hourly?.windSpeed ?: emptyList()
 
         // Open-Meteo returns local times for the forecast location (timezone=auto),
         // so compare against "now" in that location's UTC offset.
@@ -120,6 +121,7 @@ class WeatherRepository {
                     temperature = temps.getOrNull(i)?.roundToInt() ?: 0,
                     precipProbability = probs.getOrNull(i) ?: 0,
                     weatherCode = codes.getOrNull(i) ?: 0,
+                    windSpeed = winds.getOrNull(i)?.roundToInt() ?: 0,
                     isNow = isNow
                 )
             )
@@ -133,8 +135,10 @@ class WeatherRepository {
         val lows = response.daily?.temperatureMin ?: emptyList()
         val dayProbs = response.daily?.precipitationProbabilityMax ?: emptyList()
         val dayCodes = response.daily?.weatherCode ?: emptyList()
+        val dayWinds = response.daily?.windSpeedMax ?: emptyList()
 
         val dayFmt = DateTimeFormatter.ofPattern("EEE", Locale.US)
+        val dateFmt = DateTimeFormatter.ofPattern("M/d", Locale.US) // e.g. 11/2, no leading zeros
         for (i in dayTimes.indices) {
             val dayStr = dayTimes.getOrNull(i) ?: continue
             val date = try {
@@ -146,11 +150,13 @@ class WeatherRepository {
             dailyList.add(
                 DailyUi(
                     dayName = name,
+                    dateLabel = date.format(dateFmt),
                     high = highs.getOrNull(i)?.roundToInt() ?: 0,
                     low = lows.getOrNull(i)?.roundToInt() ?: 0,
                     precipProbability = dayProbs.getOrNull(i) ?: 0,
                     weatherCode = dayCodes.getOrNull(i) ?: 0,
-                    summary = weatherCodeToText(dayCodes.getOrNull(i) ?: 0)
+                    summary = weatherCodeToText(dayCodes.getOrNull(i) ?: 0),
+                    windMax = dayWinds.getOrNull(i)?.roundToInt() ?: 0
                 )
             )
         }

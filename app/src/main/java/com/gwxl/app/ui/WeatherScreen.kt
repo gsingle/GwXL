@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -135,19 +137,30 @@ private fun WeatherContent(
     val onBg = MaterialTheme.colorScheme.onBackground
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 32.dp)
+        contentPadding = PaddingValues(bottom = 20.dp)
     ) {
         // Header: tap the location name to search / change location
         item {
+          BoxWithConstraints(Modifier.fillMaxWidth()) {
+            // Keep the location name clear of the centered title.
+            val locationMaxWidth = maxWidth / 2 - 34.dp
+            Text(
+                text = "GwXL",
+                modifier = Modifier.align(Alignment.Center),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.SemiBold,
+                letterSpacing = 1.sp,
+                color = onBg.copy(alpha = 0.35f)
+            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
+                    .padding(start = 12.dp, end = 4.dp, top = 0.dp, bottom = 0.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(
                     modifier = Modifier
-                        .weight(1f, fill = false)
+                        .widthIn(max = locationMaxWidth)
                         .clip(RoundedCornerShape(10.dp))
                         .clickable(onClick = onLocationClick)
                         .padding(horizontal = 8.dp, vertical = 6.dp),
@@ -164,6 +177,7 @@ private fun WeatherContent(
                     }
                     Text(
                         text = state.locationName,
+                        modifier = Modifier.weight(1f, fill = false),
                         style = MaterialTheme.typography.titleMedium,
                         color = onBg.copy(alpha = 0.85f),
                         maxLines = 1,
@@ -193,6 +207,7 @@ private fun WeatherContent(
                     }
                 }
             }
+          }
         }
 
         // Current conditions
@@ -201,13 +216,14 @@ private fun WeatherContent(
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 8.dp),
+                        .padding(top = 0.dp, bottom = 2.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(text = repo.weatherCodeToEmoji(current.weatherCode), fontSize = 48.sp)
+                    Text(text = repo.weatherCodeToEmoji(current.weatherCode), fontSize = 42.sp, lineHeight = 46.sp)
                     Text(
                         text = "${current.temperature}°",
-                        fontSize = 92.sp,
+                        fontSize = 88.sp,
+                        lineHeight = 90.sp,
                         fontWeight = FontWeight.Light,
                         color = onBg,
                         letterSpacing = (-2).sp
@@ -233,7 +249,7 @@ private fun WeatherContent(
                 text = state.nextHourSummary,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                    .padding(horizontal = 24.dp, vertical = 10.dp),
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.primary
@@ -248,7 +264,7 @@ private fun WeatherContent(
 
         // Daily list with range bars on a shared scale
         item {
-            Spacer(Modifier.height(28.dp))
+            Spacer(Modifier.height(16.dp))
             SectionHeader("Next ${state.daily.size} days")
         }
         if (state.daily.isNotEmpty()) {
@@ -261,7 +277,7 @@ private fun WeatherContent(
 
         // Footer
         item {
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(14.dp))
             Text(
                 text = state.lastUpdated?.let { "Updated $it" } ?: "",
                 modifier = Modifier.fillMaxWidth(),
@@ -284,7 +300,7 @@ private fun WeatherContent(
 private fun SectionHeader(text: String) {
     Text(
         text = text.uppercase(),
-        modifier = Modifier.padding(start = 20.dp, bottom = 8.dp),
+        modifier = Modifier.padding(start = 20.dp, bottom = 6.dp),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
     )
@@ -293,35 +309,64 @@ private fun SectionHeader(text: String) {
 @Composable
 private fun DailyRow(day: DailyUi, repo: WeatherRepository, scaleMin: Int, scaleMax: Int) {
     val onBg = MaterialTheme.colorScheme.onBackground
+    val compact = MaterialTheme.typography.labelSmall.copy(lineHeight = 13.sp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 9.dp),
+            .padding(horizontal = 20.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            text = day.dayName,
-            modifier = Modifier.width(56.dp),
-            style = MaterialTheme.typography.bodyLarge,
-            color = onBg
-        )
+        // Day name + date, e.g. "Mon 11/2"
+        Row(modifier = Modifier.width(88.dp)) {
+            Text(
+                text = day.dayName,
+                modifier = Modifier.alignByBaseline(),
+                style = MaterialTheme.typography.bodyLarge,
+                color = onBg,
+                maxLines = 1
+            )
+            if (day.dateLabel.isNotEmpty()) {
+                Spacer(Modifier.width(5.dp))
+                Text(
+                    text = day.dateLabel,
+                    modifier = Modifier.alignByBaseline(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = onBg.copy(alpha = 0.45f),
+                    maxLines = 1
+                )
+            }
+        }
         Text(
             text = repo.weatherCodeToEmoji(day.weatherCode),
             fontSize = 20.sp,
-            modifier = Modifier.width(34.dp)
+            modifier = Modifier.width(30.dp)
         )
-        Text(
-            text = if (day.precipProbability >= 10) "${day.precipProbability}%" else "",
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.width(38.dp)
-        )
+        // Fixed-width column: rain chance (if any) over max wind, so the low temp and
+        // bar line up the same on every row whether or not there's rain.
+        Column(modifier = Modifier.width(36.dp)) {
+            if (day.precipProbability >= 10) {
+                Text(
+                    text = "${day.precipProbability}%",
+                    style = compact,
+                    color = MaterialTheme.colorScheme.primary,
+                    maxLines = 1
+                )
+            }
+            Text(
+                text = "${day.windMax}kt",
+                style = compact,
+                fontSize = 10.sp,
+                color = onBg.copy(alpha = 0.4f),
+                maxLines = 1
+            )
+        }
         Text(
             text = "${day.low}°",
-            modifier = Modifier.width(40.dp),
+            modifier = Modifier.width(34.dp),
             textAlign = TextAlign.End,
             style = MaterialTheme.typography.bodyLarge,
-            color = onBg.copy(alpha = 0.55f)
+            color = onBg.copy(alpha = 0.55f),
+            maxLines = 1
         )
         TempRangeBar(
             low = day.low,
@@ -331,14 +376,15 @@ private fun DailyRow(day: DailyUi, repo: WeatherRepository, scaleMin: Int, scale
             modifier = Modifier
                 .weight(1f)
                 .height(20.dp)
-                .padding(horizontal = 10.dp)
+                .padding(horizontal = 8.dp)
         )
         Text(
             text = "${day.high}°",
-            modifier = Modifier.width(40.dp),
+            modifier = Modifier.width(34.dp),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
-            color = onBg
+            color = onBg,
+            maxLines = 1
         )
     }
 }

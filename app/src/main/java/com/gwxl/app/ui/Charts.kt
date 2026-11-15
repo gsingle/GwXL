@@ -83,7 +83,7 @@ fun HourlyStripWithGraph(
                         fontWeight = if (h.isNow) FontWeight.Bold else FontWeight.Normal,
                         color = if (h.isNow) MaterialTheme.colorScheme.onBackground else dim
                     )
-                    Spacer(Modifier.height(4.dp))
+                    Spacer(Modifier.height(2.dp))
                     Text(text = repo.weatherCodeToEmoji(h.weatherCode), fontSize = 20.sp)
                 }
             }
@@ -92,15 +92,23 @@ fun HourlyStripWithGraph(
             hours = hours,
             modifier = Modifier
                 .width(cellWidth * hours.size)
-                .height(92.dp)
+                .height(78.dp)
         )
+        // Rain chance (blue, only when >= 10%) and wind in knots (light gray), compact.
+        val compact = MaterialTheme.typography.labelSmall.copy(lineHeight = 13.sp)
         Row {
             hours.forEach { h ->
-                Box(Modifier.width(cellWidth), contentAlignment = Alignment.Center) {
+                Column(Modifier.width(cellWidth), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(
                         text = if (h.precipProbability >= 10) "${h.precipProbability}%" else " ",
-                        style = MaterialTheme.typography.labelSmall,
+                        style = compact,
                         color = MaterialTheme.colorScheme.primary
+                    )
+                    Text(
+                        text = "${h.windSpeed}kt",
+                        style = compact,
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                     )
                 }
             }
@@ -125,8 +133,8 @@ private fun HourlyTempGraph(hours: List<HourlyUi>, modifier: Modifier = Modifier
         val mid = (maxT + minT) / 2f
         val lo = mid - range / 2f
 
-        val topPad = 26.dp.toPx()     // room for labels above points
-        val bottomPad = 10.dp.toPx()
+        val topPad = 24.dp.toPx()     // room for labels above points
+        val bottomPad = 6.dp.toPx()
         val graphH = size.height - topPad - bottomPad
         val cell = size.width / hours.size
 

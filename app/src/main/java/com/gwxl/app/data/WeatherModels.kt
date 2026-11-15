@@ -32,7 +32,8 @@ data class HourlyWeather(
     @SerialName("apparent_temperature") val apparentTemperature: List<Double>? = null,
     @SerialName("precipitation_probability") val precipitationProbability: List<Int>? = null,
     @SerialName("precipitation") val precipitation: List<Double>? = null,
-    @SerialName("weather_code") val weatherCode: List<Int>? = null
+    @SerialName("weather_code") val weatherCode: List<Int>? = null,
+    @SerialName("wind_speed_10m") val windSpeed: List<Double>? = null
 )
 
 @Serializable
@@ -42,7 +43,8 @@ data class DailyWeather(
     @SerialName("temperature_2m_min") val temperatureMin: List<Double>? = null,
     @SerialName("precipitation_sum") val precipitationSum: List<Double>? = null,
     @SerialName("precipitation_probability_max") val precipitationProbabilityMax: List<Int>? = null,
-    @SerialName("weather_code") val weatherCode: List<Int>? = null
+    @SerialName("weather_code") val weatherCode: List<Int>? = null,
+    @SerialName("wind_speed_10m_max") val windSpeedMax: List<Double>? = null
 )
 
 // UI-friendly models
@@ -60,7 +62,9 @@ data class HourlyUi(
     val temperature: Int,
     val precipProbability: Int,
     val weatherCode: Int,
-    val isNow: Boolean = false
+    val isNow: Boolean = false,
+    /** Wind speed in knots. */
+    val windSpeed: Int = 0
 )
 
 data class DailyUi(
@@ -69,7 +73,11 @@ data class DailyUi(
     val low: Int,
     val precipProbability: Int,
     val weatherCode: Int,
-    val summary: String
+    val summary: String,
+    /** Date in M/d form, e.g. "11/2". */
+    val dateLabel: String = "",
+    /** Day's max wind speed in knots. */
+    val windMax: Int = 0
 )
 
 data class WeatherUiState(
