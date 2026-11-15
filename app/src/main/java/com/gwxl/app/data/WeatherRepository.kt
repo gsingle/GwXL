@@ -3,6 +3,7 @@ package com.gwxl.app.data
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.time.LocalDateTime
@@ -38,7 +39,7 @@ class WeatherRepository {
                 append("&temperature_unit=fahrenheit")
                 append("&wind_speed_unit=kn")
                 append("&timezone=auto")
-                append("&forecast_days=7")
+                append("&forecast_days=10")
             }
 
             val request = Request.Builder().url(url).get().build()
@@ -49,6 +50,27 @@ class WeatherRepository {
                 val body = response.body?.string() ?: return@withContext Result.failure(Exception("Empty body"))
                 val parsed = json.decodeFromString<OpenMeteoResponse>(body)
                 Result.success(parsed)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun searchPlaces(query: String): Result<List<GeoResult>> = withContext(Dispatchers.IO) {
+        try {
+            val url = "https://geocoding-api.open-meteo.com/v1/search".toHttpUrl().newBuilder()
+                .addQueryParameter("name", query)
+                .addQueryParameter("count", "10")
+                .addQueryParameter("language", "en")
+                .addQueryParameter("format", "json")
+                .build()
+            val request = Request.Builder().url(url).get().build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    return@withContext Result.failure(Exception("HTTP ${response.code}"))
+                }
+                val body = response.body?.string() ?: return@withContext Result.success(emptyList())
+                Result.success(json.decodeFromString<GeocodingResponse>(body).results ?: emptyList())
             }
         } catch (e: Exception) {
             Result.failure(e)

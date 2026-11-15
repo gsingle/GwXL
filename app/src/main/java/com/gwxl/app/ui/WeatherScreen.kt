@@ -1,6 +1,7 @@
 package com.gwxl.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,10 +16,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -26,25 +29,38 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gwxl.app.data.DailyUi
-import com.gwxl.app.data.HourlyUi
+import com.gwxl.app.data.SavedPlace
+import com.gwxl.app.data.SearchUiState
 import com.gwxl.app.data.WeatherRepository
 import com.gwxl.app.data.WeatherUiState
 
 @Composable
 fun WeatherScreen(
     state: WeatherUiState,
-    onRefresh: () -> Unit
+    search: SearchUiState,
+    onRefresh: () -> Unit,
+    onSearchQueryChange: (String) -> Unit,
+    onPlaceSelected: (SavedPlace) -> Unit,
+    onUseCurrentLocation: () -> Unit,
+    onRemoveRecent: (SavedPlace) -> Unit,
+    onSearchClosed: () -> Unit
 ) {
     val repo = remember { WeatherRepository() } // only for text/emoji helpers
+    var searchOpen by rememberSaveable { mutableStateOf(false) }
 
     Box(
         modifier = Modifier
@@ -52,6 +68,19 @@ fun WeatherScreen(
             .background(MaterialTheme.colorScheme.background)
             .systemBarsPadding()
     ) {
+        if (searchOpen) {
+            LocationSearch(
+                search = search,
+                usingCurrentLocation = state.usingCurrentLocation,
+                onQueryChange = onSearchQueryChange,
+                onPlaceSelected = { searchOpen = false; onPlaceSelected(it) },
+                onUseCurrentLocation = { searchOpen = false; onUseCurrentLocation() },
+                onRemoveRecent = onRemoveRecent,
+                onClose = { searchOpen = false; onSearchClosed() }
+            )
+            return@Box
+        }
+
         when {
             state.isLoading && state.current == null -> {
                 CircularProgressIndicator(
@@ -67,240 +96,249 @@ fun WeatherScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = state.error ?: "Error",
+                        text = state.error,
                         color = MaterialTheme.colorScheme.onBackground,
                         textAlign = TextAlign.Center
                     )
                     Spacer(Modifier.height(16.dp))
                     IconButton(onClick = onRefresh) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Retry", tint = MaterialTheme.colorScheme.primary)
+                    }
+                    Text(
+                        text = "Change location",
+                        modifier = Modifier
+                            .clickable { searchOpen = true }
+                            .padding(8.dp),
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+            else -> WeatherContent(
+                state = state,
+                repo = repo,
+                onRefresh = onRefresh,
+                onLocationClick = { searchOpen = true },
+                onUseCurrentLocation = onUseCurrentLocation
+            )
+        }
+    }
+}
+
+@Composable
+private fun WeatherContent(
+    state: WeatherUiState,
+    repo: WeatherRepository,
+    onRefresh: () -> Unit,
+    onLocationClick: () -> Unit,
+    onUseCurrentLocation: () -> Unit
+) {
+    val onBg = MaterialTheme.colorScheme.onBackground
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(bottom = 32.dp)
+    ) {
+        // Header: tap the location name to search / change location
+        item {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, end = 4.dp, top = 8.dp, bottom = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier
+                        .weight(1f, fill = false)
+                        .clip(RoundedCornerShape(10.dp))
+                        .clickable(onClick = onLocationClick)
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (state.usingCurrentLocation) {
                         Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Retry",
+                            Icons.Default.Navigation,
+                            contentDescription = "Current location",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                    }
+                    Text(
+                        text = state.locationName,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = onBg.copy(alpha = 0.85f),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Icon(
+                        Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Change location",
+                        tint = onBg.copy(alpha = 0.5f)
+                    )
+                }
+                Spacer(Modifier.weight(1f))
+                if (!state.usingCurrentLocation) {
+                    IconButton(onClick = onUseCurrentLocation) {
+                        Icon(
+                            Icons.Default.MyLocation,
+                            contentDescription = "Back to current location",
                             tint = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
-            }
-            else -> {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(bottom = 32.dp)
-                ) {
-                    item {
-                        // Header
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 20.dp, vertical = 12.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = state.locationName,
-                                style = MaterialTheme.typography.titleMedium,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
-                            )
-                            IconButton(onClick = onRefresh) {
-                                Icon(
-                                    Icons.Default.Refresh,
-                                    contentDescription = "Refresh",
-                                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                                )
-                            }
-                        }
-                    }
-
-                    item {
-                        // Current conditions
-                        state.current?.let { current ->
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 8.dp),
-                                horizontalAlignment = Alignment.CenterHorizontally
-                            ) {
-                                Text(
-                                    text = repo.weatherCodeToEmoji(current.weatherCode),
-                                    fontSize = 48.sp
-                                )
-                                Text(
-                                    text = "${current.temperature}°",
-                                    fontSize = 92.sp,
-                                    fontWeight = FontWeight.Light,
-                                    color = MaterialTheme.colorScheme.onBackground,
-                                    letterSpacing = (-2).sp
-                                )
-                                Text(
-                                    text = current.summary,
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = MaterialTheme.colorScheme.onBackground
-                                )
-                                Text(
-                                    text = "Feels like ${current.feelsLike}°",
-                                    style = MaterialTheme.typography.bodyLarge,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                                )
-                                Text(
-                                    text = "Wind ${current.windSpeed} kt · Humidity ${current.humidity}%",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                                )
-                            }
-                        }
-                    }
-
-                    item {
-                        // Next hour summary
-                        Text(
-                            text = state.nextHourSummary,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 24.dp, vertical = 16.dp),
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-
-                    item {
-                        Text(
-                            text = "HOURLY",
-                            modifier = Modifier.padding(start = 20.dp, bottom = 8.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                        )
-                    }
-
-                    item {
-                        LazyRow(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            items(state.hourly) { hour ->
-                                HourCard(hour, repo)
-                            }
-                        }
-                    }
-
-                    item {
-                        Spacer(Modifier.height(28.dp))
-                        Text(
-                            text = "THIS WEEK",
-                            modifier = Modifier.padding(start = 20.dp, bottom = 4.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                        )
-                    }
-
-                    items(state.daily) { day ->
-                        DailyRow(day, repo)
-                    }
-
-                    item {
-                        Spacer(Modifier.height(24.dp))
-                        Text(
-                            text = state.lastUpdated?.let { "Updated $it" } ?: "",
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-                        )
-                        Text(
-                            text = "Powered by Open-Meteo · GwXL",
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f)
-                        )
+                IconButton(onClick = onRefresh) {
+                    if (state.isLoading) {
+                        CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                    } else {
+                        Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = onBg.copy(alpha = 0.6f))
                     }
                 }
             }
         }
-    }
-}
 
-@Composable
-private fun HourCard(hour: HourlyUi, repo: WeatherRepository) {
-    Column(
-        modifier = Modifier
-            .width(68.dp)
-            .clip(RoundedCornerShape(14.dp))
-            .background(
-                if (hour.isNow) MaterialTheme.colorScheme.surfaceVariant
-                else MaterialTheme.colorScheme.surface
-            )
-            .padding(vertical = 12.dp, horizontal = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = hour.time,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = repo.weatherCodeToEmoji(hour.weatherCode),
-            fontSize = 22.sp
-        )
-        Spacer(Modifier.height(6.dp))
-        Text(
-            text = "${hour.temperature}°",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onSurface
-        )
-        if (hour.precipProbability > 0) {
-            Spacer(Modifier.height(4.dp))
+        // Current conditions
+        item {
+            state.current?.let { current ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(text = repo.weatherCodeToEmoji(current.weatherCode), fontSize = 48.sp)
+                    Text(
+                        text = "${current.temperature}°",
+                        fontSize = 92.sp,
+                        fontWeight = FontWeight.Light,
+                        color = onBg,
+                        letterSpacing = (-2).sp
+                    )
+                    Text(text = current.summary, style = MaterialTheme.typography.titleLarge, color = onBg)
+                    Text(
+                        text = "Feels like ${current.feelsLike}°",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = onBg.copy(alpha = 0.6f)
+                    )
+                    Text(
+                        text = "Wind ${current.windSpeed} kt · Humidity ${current.humidity}%",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = onBg.copy(alpha = 0.5f)
+                    )
+                }
+            }
+        }
+
+        // Next hour summary
+        item {
             Text(
-                text = "${hour.precipProbability}%",
-                style = MaterialTheme.typography.labelSmall,
+                text = state.nextHourSummary,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 16.dp),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.primary
+            )
+        }
+
+        // Hourly strip + temperature graph (scroll together)
+        item {
+            SectionHeader("Next 24 hours")
+            HourlyStripWithGraph(hours = state.hourly, repo = repo)
+        }
+
+        // Daily list with range bars on a shared scale
+        item {
+            Spacer(Modifier.height(28.dp))
+            SectionHeader("Next ${state.daily.size} days")
+        }
+        if (state.daily.isNotEmpty()) {
+            val scaleMin = state.daily.minOf { it.low }
+            val scaleMax = state.daily.maxOf { it.high }
+            items(state.daily) { day ->
+                DailyRow(day, repo, scaleMin, scaleMax)
+            }
+        }
+
+        // Footer
+        item {
+            Spacer(Modifier.height(24.dp))
+            Text(
+                text = state.lastUpdated?.let { "Updated $it" } ?: "",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelSmall,
+                color = onBg.copy(alpha = 0.4f)
+            )
+            Text(
+                text = "Powered by Open-Meteo · GwXL",
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.Center,
+                style = MaterialTheme.typography.labelSmall,
+                color = onBg.copy(alpha = 0.3f)
             )
         }
     }
 }
 
 @Composable
-private fun DailyRow(day: DailyUi, repo: WeatherRepository) {
+private fun SectionHeader(text: String) {
+    Text(
+        text = text.uppercase(),
+        modifier = Modifier.padding(start = 20.dp, bottom = 8.dp),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+    )
+}
+
+@Composable
+private fun DailyRow(day: DailyUi, repo: WeatherRepository, scaleMin: Int, scaleMax: Int) {
+    val onBg = MaterialTheme.colorScheme.onBackground
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 10.dp),
+            .padding(horizontal = 20.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = day.dayName,
-            modifier = Modifier.width(72.dp),
+            modifier = Modifier.width(56.dp),
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground
+            color = onBg
         )
         Text(
             text = repo.weatherCodeToEmoji(day.weatherCode),
-            fontSize = 22.sp,
-            modifier = Modifier.width(40.dp)
+            fontSize = 20.sp,
+            modifier = Modifier.width(34.dp)
         )
-        if (day.precipProbability > 0) {
-            Text(
-                text = "${day.precipProbability}%",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.width(48.dp)
-            )
-        } else {
-            Spacer(Modifier.width(48.dp))
-        }
-        Spacer(Modifier.weight(1f))
+        Text(
+            text = if (day.precipProbability >= 10) "${day.precipProbability}%" else "",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.width(38.dp)
+        )
         Text(
             text = "${day.low}°",
+            modifier = Modifier.width(40.dp),
+            textAlign = TextAlign.End,
             style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+            color = onBg.copy(alpha = 0.55f)
         )
-        Spacer(Modifier.width(12.dp))
+        TempRangeBar(
+            low = day.low,
+            high = day.high,
+            scaleMin = scaleMin,
+            scaleMax = scaleMax,
+            modifier = Modifier
+                .weight(1f)
+                .height(20.dp)
+                .padding(horizontal = 10.dp)
+        )
         Text(
             text = "${day.high}°",
+            modifier = Modifier.width(40.dp),
             style = MaterialTheme.typography.bodyLarge,
             fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.onBackground
+            color = onBg
         )
     }
 }

@@ -80,5 +80,15 @@ data class WeatherUiState(
     val hourly: List<HourlyUi> = emptyList(),
     val daily: List<DailyUi> = emptyList(),
     val error: String? = null,
-    val lastUpdated: String? = null
+    val lastUpdated: String? = null,
+    val usingCurrentLocation: Boolean = true
+)
+
+/** State of the location search screen. */
+data class SearchUiState(
+    val query: String = "",
+    val results: List<SavedPlace> = emptyList(),
+    val recents: List<SavedPlace> = emptyList(),
+    val isSearching: Boolean = false,
+    val error: String? = null
 )

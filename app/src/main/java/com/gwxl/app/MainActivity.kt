@@ -55,9 +55,16 @@ class MainActivity : ComponentActivity() {
                     color = MaterialTheme.colorScheme.background
                 ) {
                     val state by viewModel.state.collectAsState()
+                    val search by viewModel.search.collectAsState()
                     WeatherScreen(
                         state = state,
-                        onRefresh = { viewModel.refresh() }
+                        search = search,
+                        onRefresh = { viewModel.refresh() },
+                        onSearchQueryChange = viewModel::onSearchQueryChange,
+                        onPlaceSelected = viewModel::selectPlace,
+                        onUseCurrentLocation = viewModel::useCurrentLocation,
+                        onRemoveRecent = viewModel::removeRecent,
+                        onSearchClosed = viewModel::resetSearch
                     )
                 }
             }

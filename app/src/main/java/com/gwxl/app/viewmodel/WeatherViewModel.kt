@@ -8,10 +8,14 @@ import androidx.lifecycle.viewModelScope
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import com.google.android.gms.tasks.CancellationTokenSource
+import com.gwxl.app.data.LocationStore
+import com.gwxl.app.data.SavedPlace
+import com.gwxl.app.data.SearchUiState
 import com.gwxl.app.data.WeatherRepository
 import com.gwxl.app.data.WeatherUiState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +28,7 @@ import java.util.Locale
 class WeatherViewModel(application: Application) : AndroidViewModel(application) {
 
     private val repository = WeatherRepository()
+    private val locationStore = LocationStore(application)
     private val fusedLocationClient = LocationServices.getFusedLocationProviderClient(application)
 
     private val _state = MutableStateFlow(WeatherUiState())
@@ -34,24 +39,39 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
     private val fallbackLon = -98.5795
 
     private var refreshJob: Job? = null
+    private var searchJob: Job? = null
+
+    private val _search = MutableStateFlow(SearchUiState(recents = locationStore.recents()))
+    val search: StateFlow<SearchUiState> = _search.asStateFlow()
 
     fun refresh() {
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             _state.value = _state.value.copy(isLoading = true, error = null)
             try {
-                val location = getCurrentLocation()
-                val lat = location?.first ?: fallbackLat
-                val lon = location?.second ?: fallbackLon
-                val name = if (location == null) {
-                    "Central US (location off)"
+                val picked = locationStore.selected()
+                val lat: Double
+                val lon: Double
+                val name: String
+                if (picked != null) {
+                    lat = picked.latitude
+                    lon = picked.longitude
+                    name = picked.name
                 } else {
-                    reverseGeocode(lat, lon) ?: "Current Location"
+                    val location = getCurrentLocation()
+                    lat = location?.first ?: fallbackLat
+                    lon = location?.second ?: fallbackLon
+                    name = if (location == null) {
+                        "Central US (location off)"
+                    } else {
+                        reverseGeocode(lat, lon) ?: "Current Location"
+                    }
                 }
 
                 repository.fetchWeather(lat, lon).fold(
                     onSuccess = { response ->
                         _state.value = repository.mapToUi(response, name)
+                            .copy(usingCurrentLocation = picked == null)
                     },
                     onFailure = { e ->
                         _state.value = _state.value.copy(
@@ -69,6 +89,58 @@ class WeatherViewModel(application: Application) : AndroidViewModel(application)
                 )
             }
         }
+    }
+
+    // --- Location search ---
+
+    fun onSearchQueryChange(query: String) {
+        _search.value = _search.value.copy(query = query, error = null)
+        searchJob?.cancel()
+        if (query.trim().length < 2) {
+            _search.value = _search.value.copy(results = emptyList(), isSearching = false)
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(300) // debounce typing
+            _search.value = _search.value.copy(isSearching = true)
+            repository.searchPlaces(query.trim()).fold(
+                onSuccess = { results ->
+                    _search.value = _search.value.copy(
+                        results = results.map { it.toPlace() },
+                        isSearching = false,
+                        error = if (results.isEmpty()) "No places found" else null
+                    )
+                },
+                onFailure = {
+                    _search.value = _search.value.copy(
+                        isSearching = false,
+                        error = "Search failed. Check your connection."
+                    )
+                }
+            )
+        }
+    }
+
+    fun selectPlace(place: SavedPlace) {
+        locationStore.select(place)
+        resetSearch()
+        refresh()
+    }
+
+    fun useCurrentLocation() {
+        locationStore.useCurrentLocation()
+        resetSearch()
+        refresh()
+    }
+
+    fun removeRecent(place: SavedPlace) {
+        locationStore.removeRecent(place)
+        _search.value = _search.value.copy(recents = locationStore.recents())
+    }
+
+    fun resetSearch() {
+        searchJob?.cancel()
+        _search.value = SearchUiState(recents = locationStore.recents())
     }
 
     @SuppressLint("MissingPermission") // SecurityException is caught below
